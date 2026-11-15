@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://celticgemini001.github.io/upgolab-tools/sitemap.xml

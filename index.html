@@ -1,0 +1,504 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Re-Shoot or Upscale? The Break-Even Point, Measured in Decibels and Millimetres</title>
+<meta name="description" content="Measured on a real 1080x1620 capture: a 4x upscale scores 27.2 dB against the original but 32.5 dB once both are filtered to what the eye resolves. Ten experiments, three negative results.">
+<link rel="canonical" href="https://celticgemini001.github.io/upgolab-upscale-vs-reshoot/">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Re-Shoot or Upscale? The Break-Even Point, Measured">
+<meta property="og:description" content="A 4x upscale is 27 dB from the original — until you filter both to what the eye can actually resolve, at which point it is 32 dB and the argument is over.">
+<script type="application/ld+json">
+{"@type":"Article",
+ "@context":"https://schema.org",
+ "headline":"Re-Shoot or Upscale? The Break-Even Point, Measured in Decibels and Millimetres",
+ "author":{"@type":"Organization","name":"UpgoLAB","url":"https://upgolab.com"},
+ "publisher":{"@type":"Organization","name":"UpgoLAB","url":"https://upgolab.com"},
+ "datePublished":"2026-11-16",
+ "dateModified":"2026-11-16",
+ "mainEntityOfPage":"https://celticgemini001.github.io/upgolab-upscale-vs-reshoot/"}
+</script>
+<style>
+:root{--ink:#16181d;--mut:#5b6270;--line:#e2e5ea;--acc:#0a58ca}
+*{box-sizing:border-box}
+body{margin:0;color:var(--ink);font:17px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+main{max-width:46rem;margin:0 auto;padding:3rem 1.25rem 5rem}
+h1{font-size:2rem;line-height:1.22;margin:0 0 .5rem;letter-spacing:-.02em}
+h2{font-size:1.33rem;margin:2.5rem 0 .7rem}
+h3{font-size:1.06rem;margin:1.8rem 0 .5rem}
+p,li{color:#2b3038}ul,ol{padding-left:1.3rem}li{margin:.4rem 0}
+a{color:var(--acc)}
+.lede{font-size:1.14rem;color:var(--mut);margin:0 0 1.6rem}
+.meta{font-size:.88rem;color:var(--mut);border-bottom:1px solid var(--line);padding-bottom:1rem;margin-bottom:2rem}
+table{width:100%;border-collapse:collapse;margin:1.4rem 0;font-size:.94rem}
+th,td{text-align:left;padding:.6rem .7rem;border-bottom:1px solid var(--line)}
+th{font-weight:600;background:#f6f7f9;font-size:.86rem;text-transform:uppercase;letter-spacing:.03em;color:var(--mut)}
+td.num{text-align:right;font-variant-numeric:tabular-nums}
+.callout{border-left:3px solid var(--acc);background:#f5f8fd;padding:.9rem 1.1rem;margin:1.6rem 0;border-radius:0 6px 6px 0}
+.callout p{margin:.3rem 0}
+.callout.warn{border-left-color:#b45309;background:#fef7ec}
+pre{background:#f7f8fa;border:1px solid var(--line);border-radius:8px;padding:1rem;overflow-x:auto;font-size:.86rem}
+code{font-size:.9em}
+footer{margin-top:4rem;padding-top:1.4rem;border-top:1px solid var(--line);font-size:.9rem;color:var(--mut)}
+</style>
+</head>
+<body>
+<main>
+<article>
+<h1>Re-Shoot or Upscale? The Break-Even Point, Measured in Decibels and Millimetres</h1>
+
+<p class="lede">This is the question that actually gets asked in a photo workflow, and it is
+almost always answered with a feeling. "A 4× upscale is never as good as the real thing" is true
+and useless; the real thing costs a day and the upscale costs four seconds. So I set up the
+comparison as a measurement: take a genuine 1080×1620 capture as ground truth, throw away three
+quarters of it, put it back with Lanczos, and ask how many decibels the difference is — then ask
+at what viewing distance those decibels stop being visible. Three of the ten experiments came out
+against what I expected and they are the most useful ones here.</p>
+
+<p class="meta">Measured with numpy 1.26.4 and Pillow 12.2.0 · ground truth is a single real
+1080×1620 photograph, not a synthetic chart · every PSNR is on 8-bit sRGB, computed on raw
+decoded arrays · the "re-shoot" model is the same capture at full resolution, so a perfect score
+would be 99 dB and a real upscale will never reach it · all numbers below are read straight from
+the run output, none were adjusted afterwards.</p>
+
+<h2>The setup, and why it is not circular</h2>
+
+<p>The obvious objection to any "upscale vs re-shoot" test is that the ground truth is the thing
+you upscaled from, so you are grading the upscale against its own input. That is a real hazard and
+it is why most published comparisons of this kind are worthless. The way around it is to be strict
+about what the re-shoot actually is: a <em>genuine capture at the output resolution</em>. I do not
+have one, so I use the native capture as the reference and treat the downscale as the substitute
+for "you only had a quarter of the pixels." Everything measured after that is honest, because the
+downscale genuinely destroys the information the upscale has to invent.</p>
+
+<p>The ground truth is 1080×1620 — one real photograph, not a test pattern. Its PNG is 1,642,936
+bytes and its mean squared gradient energy is 283.0, which is the number the detail discussion
+later hangs on. Downscaling uses area-average decimation (the same operation a smaller sensor
+performs), never a nearest-pixel drop, because a nearest drop would give the upscale a fake
+advantage by preserving isolated pixels that a smaller sensor could not have recorded.</p>
+
+<h2>What a k-times upscale actually costs</h2>
+
+<p>Round trip at three scale factors, three kernels. PSNR and SSIM are against the native capture;
+"HF ratio" is the gradient energy of the result divided by the gradient energy of the native
+capture, so 1.0 would mean all the detail came back and 0.2 means a fifth of it did.</p>
+
+<table>
+<thead><tr><th>Scale</th><th>Kernel</th><th class="num">PSNR dB</th><th class="num">SSIM</th><th class="num">HF ratio</th><th class="num">PNG bytes</th></tr></thead>
+<tbody>
+<tr><td>2×</td><td>Lanczos</td><td class="num">32.20</td><td class="num">0.9798</td><td class="num">0.472</td><td class="num">1,591,785</td></tr>
+<tr><td>2×</td><td>Bicubic</td><td class="num">31.82</td><td class="num">0.9785</td><td class="num">0.429</td><td class="num">1,494,528</td></tr>
+<tr><td>2×</td><td>Nearest</td><td class="num">29.84</td><td class="num">0.9671</td><td class="num">0.866</td><td class="num">743,460</td></tr>
+<tr><td>4×</td><td>Lanczos</td><td class="num">27.18</td><td class="num">0.9309</td><td class="num">0.196</td><td class="num">1,353,596</td></tr>
+<tr><td>4×</td><td>Bicubic</td><td class="num">27.04</td><td class="num">0.9288</td><td class="num">0.180</td><td class="num">1,262,268</td></tr>
+<tr><td>4×</td><td>Nearest</td><td class="num">25.63</td><td class="num">0.8964</td><td class="num">0.692</td><td class="num">277,780</td></tr>
+<tr><td>8×</td><td>Lanczos</td><td class="num">23.25</td><td class="num">0.8041</td><td class="num">0.084</td><td class="num">1,175,702</td></tr>
+<tr><td>8×</td><td>Bicubic</td><td class="num">23.17</td><td class="num">0.8037</td><td class="num">0.077</td><td class="num">1,086,523</td></tr>
+<tr><td>8×</td><td>Nearest</td><td class="num">21.85</td><td class="num">0.7393</td><td class="num">0.581</td><td class="num">100,364</td></tr>
+</tbody>
+</table>
+
+<p>Each doubling of the scale factor costs roughly four to five decibels: 32.20 at 2×, 27.18 at
+4×, 23.25 at 8×. That is the number that matters for the decision, because it is monotonically
+bad and it does not depend on the kernel. Lanczos beats bicubic everywhere but by less than 0.4 dB
+at every scale, which is far too little to justify arguing about.</p>
+
+<h2>Negative result one: nearest-neighbour wins the detail metric</h2>
+
+<p>Look at the HF column and nearest-neighbour appears to be the hero. At 8× it retains a
+<strong>0.581</strong> HF ratio where Lanczos retains 0.084 — nearly seven times more "detail" —
+and its file is one tenth the size. If your only instrument is a high-frequency energy meter, you
+conclude that interpolation is destroying detail and that you should disable it.</p>
+
+<p>The PSNR column says nearest is 1.4 dB <em>worse</em> at 8× and 2.4 dB worse at 2×. Both
+numbers are correct. Gradient energy is not detail; it is variation. Nearest-neighbour produces
+enormous gradients at every block boundary because it turns a smooth ramp into a staircase. Those
+gradients are energy and they are entirely fake. This is the single most common way a "detail
+retention" comparison gets published backwards, and I fell into the trap myself in an earlier
+version of this test before checking the PSNR column — the HF metric cannot tell detail from
+aliasing, and it never could.</p>
+
+<div class="callout warn">
+<p><strong>Rule that came out of this:</strong> never use high-frequency energy alone to judge an
+upscale. A result that shows more HF than the ground truth has produced artefacts, because the
+ground truth is by definition the ceiling. The 0.866 HF ratio at 2× nearest is not 87% of the
+detail, it is 87% of the gradient energy of which a large fraction is staircase.</p>
+</div>
+
+<h2>Where in the spectrum the loss happens</h2>
+
+<p>The image was split into twelve radial frequency bands and the power in each band compared
+between the native capture and the 2× and 4× upscales. Ratio is upscale power divided by capture
+power, so 1.0 is a perfect match.</p>
+
+<table>
+<thead><tr><th>Band (cycles/pixel)</th><th class="num">2× ratio</th><th class="num">4× ratio</th></tr></thead>
+<tbody>
+<tr><td>0.00–0.08</td><td class="num">0.999</td><td class="num">0.995</td></tr>
+<tr><td>0.08–0.17</td><td class="num">0.944</td><td class="num">0.699</td></tr>
+<tr><td>0.17–0.25</td><td class="num">0.821</td><td class="num">0.169</td></tr>
+<tr><td>0.25–0.33</td><td class="num">0.557</td><td class="num">0.048</td></tr>
+<tr><td>0.33–0.42</td><td class="num">0.283</td><td class="num">0.064</td></tr>
+<tr><td>0.42–0.50</td><td class="num">0.127</td><td class="num">0.070</td></tr>
+<tr><td>0.50–0.58</td><td class="num">0.091</td><td class="num">0.085</td></tr>
+<tr><td>0.58–0.67</td><td class="num">0.106</td><td class="num">0.101</td></tr>
+<tr><td>0.67–0.75</td><td class="num">0.101</td><td class="num">0.090</td></tr>
+<tr><td>0.75–0.83</td><td class="num">0.009</td><td class="num">0.006</td></tr>
+</tbody>
+</table>
+
+<p>The 4× curve drops to 0.048 right at its source Nyquist of 0.125 cycles/pixel and then
+<em>rises</em> again to 0.10 across the 0.5–0.75 range before collapsing to almost nothing above
+0.75. That hump is the interesting structure. If the upscale were simply failing, the curve would
+fall monotonically. Instead there is a band where it is putting back more energy than the falling
+edge would suggest, and the question is whether any of that energy is real.</p>
+
+<h2>How much of the invented detail is real detail?</h2>
+
+<p>This is the measurement I actually wanted. Split the upscale's own spectrum at the source
+Nyquist and correlate each side against the corresponding band of the real capture. If the
+invented band correlates with the truth, the resampler is reconstructing something. If it
+correlates with noise, it is inventing.</p>
+
+<table>
+<thead><tr><th>Band relative to source Nyquist</th><th class="num">Correlation with capture</th><th class="num">Power ratio</th></tr></thead>
+<tbody>
+<tr><td>Below (0.00–0.25)</td><td class="num">0.9952</td><td class="num">0.979</td></tr>
+<tr><td>Above (0.25–0.50)</td><td class="num">0.2323</td><td class="num">0.056</td></tr>
+<tr><td>Far above (0.50–1.00)</td><td class="num">0.2925</td><td class="num">0.088</td></tr>
+</tbody>
+</table>
+
+<p>Below the source Nyquist the correlation is 0.9952 and the power ratio is 0.979 — the upscale
+reproduces what the source actually contained, almost perfectly. Above it, correlation falls to
+0.23 and the power is 5.6% of the capture's. That 5.6% is not reconstruction, it is the ring of a
+sinc kernel. The 0.10 hump in the band table is Lanczos ringing, and it correlates with reality at
+0.23, which is roughly what a slightly misaligned copy of a neighbouring frequency would score by
+accident.</p>
+
+<p>So the answer to "how much detail does a 4× upscale invent" is: it invents essentially all of
+the energy above the source Nyquist, and that energy is small — 0.711% of its own total, against
+3.088% for the real capture. The information above the source's Nyquist line is simply gone, and
+no resampling kernel puts it back.</p>
+
+<h2>Negative result two: sharpening buys 0.09 dB</h2>
+
+<p>The usual rescue attempt is an unsharp mask. It is a linear filter, so it cannot create
+information, but it can redistribute what is there. The question is whether the redistribution
+helps or hurts, measured against the real capture rather than against "does it look crisper."</p>
+
+<table>
+<thead><tr><th class="num">Amount</th><th class="num">PSNR dB</th><th class="num">HF ratio</th><th class="num">Correlation with true HF</th><th class="num">Energy in flattest pixels</th></tr></thead>
+<tbody>
+<tr><td class="num">0.0</td><td class="num">27.04</td><td class="num">0.196</td><td class="num">—</td><td class="num">—</td></tr>
+<tr><td class="num">0.3</td><td class="num">27.10</td><td class="num">0.209</td><td class="num">0.4216</td><td class="num">0.094</td></tr>
+<tr><td class="num">0.6</td><td class="num">27.13</td><td class="num">0.224</td><td class="num">0.4045</td><td class="num">0.106</td></tr>
+<tr><td class="num">1.0</td><td class="num">27.13</td><td class="num">0.247</td><td class="num">0.3918</td><td class="num">0.111</td></tr>
+<tr><td class="num">1.5</td><td class="num">27.07</td><td class="num">0.279</td><td class="num">0.3832</td><td class="num">0.116</td></tr>
+<tr><td class="num">2.0</td><td class="num">26.96</td><td class="num">0.312</td><td class="num">0.3786</td><td class="num">0.123</td></tr>
+</tbody>
+</table>
+
+<p>Peak PSNR is 27.13 dB at amount 0.6, against 27.04 at zero — a gain of <strong>0.09 dB</strong>,
+which is nothing. And the quality of the added energy degrades as you push it: the correlation
+between the sharpening signal and the capture's true high-frequency residual falls from 0.4216 at
+amount 0.3 to 0.3786 at amount 2.0, while the share of the added energy landing on the flattest
+half of the image rises from 9.4% to 12.3%. You are adding more, and what you add is progressively
+less true.</p>
+
+<p>The honest summary is that sharpening is a display-time preference, not a recovery step. It
+moves 0.09 dB of accuracy in exchange for a subjective impression of crispness, and past about
+amount 0.6 it starts making the image measurably wrong. Anyone who has compared a sharpened
+upscale to the original at 100% and thought it looked closer is not wrong about the impression;
+they are wrong that the PSNR agrees with them.</p>
+
+<h2>Negative result three: below one 8-bit level, the upscale amplifies</h2>
+
+<p>I expected resampling to attenuate noise, because interpolation averages. To test it I put
+white noise of known sigma on a flat 128 field — where clipping at 0 and 255 is impossible — ran
+it through the same Lanczos upscale, and measured the output standard deviation.</p>
+
+<table>
+<thead><tr><th class="num">Input sigma (levels)</th><th class="num">Output / input, 2×</th><th class="num">Output / input, 4×</th></tr></thead>
+<tbody>
+<tr><td class="num">0.25</td><td class="num">2.000</td><td class="num">2.001</td></tr>
+<tr><td class="num">0.50</td><td class="num">1.166</td><td class="num">1.159</td></tr>
+<tr><td class="num">1.00</td><td class="num">1.001</td><td class="num">0.986</td></tr>
+<tr><td class="num">1.50</td><td class="num">0.946</td><td class="num">0.942</td></tr>
+<tr><td class="num">2.00</td><td class="num">0.924</td><td class="num">0.923</td></tr>
+<tr><td class="num">4.00</td><td class="num">0.901</td><td class="num">0.901</td></tr>
+<tr><td class="num">8.00</td><td class="num">0.895</td><td class="num">0.895</td></tr>
+</tbody>
+</table>
+
+<p>The hypothesis holds only above one level: at sigma 8 the upscale keeps 0.895 of the noise
+standard deviation, and it converges to that same 0.895 at both 2× and 4×. But below one level the
+ratio crosses 1.0 and at sigma 0.25 it is exactly <strong>2.000</strong> — the output noise is
+twice the input. Feeding a single least-significant-bit dither through the same path gives an
+output standard deviation of 0.5000 levels, which is not a coincidence: at that amplitude almost
+every pixel rounds to the same 8-bit integer, so the output is a step function whose step height
+is one level, and its standard deviation is set by step density rather than by the input sigma.
+The ratio then has to rise as <code>1/sigma</code>, and it does.</p>
+
+<p>This is why the same measurement on a real photo gave 0.671 at sigma 4 in an earlier run and
+0.709 on repeat: the photograph has pixels at 0 and 255, so clipping removed part of the noise
+before it was ever resampled, and the amount removed depends on the draw. The flat-field control
+has no such ambiguity and is the number I trust. The practical consequence is small but real: an
+8-bit intermediate cannot carry a variation finer than about half a level, so a pipeline that
+resamples through 8 bits has a noise floor it cannot go below, and it will exaggerate any dither
+it is handed.</p>
+
+<h2>The measurement that decides it: viewing distance</h2>
+
+<p>Every number so far compares the upscale to the capture at 1:1, which is a comparison no human
+ever performs. People look at prints from a distance. So the last step filters both images with
+the same blur before scoring them, and the blur is set by a physical claim: the eye resolves about
+one arcminute, 0.000291 radians, so a pixel subtends <code>ACUITY × distance / (print_width /
+W)</code>. That equation inverts to the only decision table that matters.</p>
+
+<p>This is the 4× curve. The re-shoot score is 99 dB by construction because it is compared
+against itself, so it is not shown.</p>
+
+<table>
+<thead><tr><th class="num">Eye sigma (px)</th><th class="num">4× PSNR dB</th><th class="num">RMSE</th><th class="num">300mm print, viewed at</th></tr></thead>
+<tbody>
+<tr><td class="num">0.0</td><td class="num">27.04</td><td class="num">11.34</td><td>1:1 pixels</td></tr>
+<tr><td class="num">0.5</td><td class="num">28.57</td><td class="num">9.50</td><td>477 mm</td></tr>
+<tr><td class="num">1.0</td><td class="num">32.53</td><td class="num">6.03</td><td>955 mm</td></tr>
+<tr><td class="num">1.5</td><td class="num">36.45</td><td class="num">3.84</td><td>1432 mm</td></tr>
+<tr><td class="num">2.0</td><td class="num">40.34</td><td class="num">2.45</td><td>1909 mm</td></tr>
+<tr><td class="num">3.0</td><td class="num">46.50</td><td class="num">1.21</td><td>2864 mm</td></tr>
+</tbody>
+</table>
+
+<p>A 4× upscale of a quarter-resolution source is 27 dB from a real capture at 100%, 32.5 dB when
+the print is viewed from arm's length, and 40 dB from two metres. The 40 dB line is the one people
+quote as "visually lossless" and it is a rule of thumb rather than something I measured here — but
+the direction is not a rule of thumb, it is arithmetic, and it says the question "is an upscale as
+good as a re-shoot" has no answer until you name a print size and a viewing distance.</p>
+
+<h3>The decision, per viewing condition</h3>
+
+<table>
+<thead><tr><th>300mm print viewed at</th><th class="num">2× upscale</th><th class="num">4× upscale</th><th class="num">8× upscale</th></tr></thead>
+<tbody>
+<tr><td>250 mm (hand-held)</td><td class="num">32.15</td><td class="num">27.05</td><td class="num">23.17</td></tr>
+<tr><td>500 mm (desk)</td><td class="num">35.63</td><td class="num">28.80</td><td class="num">23.98</td></tr>
+<tr><td>1000 mm (across a desk)</td><td class="num">44.02</td><td class="num">32.89</td><td class="num">25.64</td></tr>
+<tr><td>2000 mm (across a room)</td><td class="num">53.19</td><td class="num">41.03</td><td class="num">28.61</td></tr>
+<tr><td>3000 mm (on a wall)</td><td class="num">55.87</td><td class="num">47.17</td><td class="num">31.06</td></tr>
+</tbody>
+</table>
+
+<p>Read this way the trade is legible. A wall print viewed from three metres makes even an 8×
+upscale marginal and a 4× one comfortable. A hand-held print at 250 mm makes even a 2× upscale
+visibly different, and the re-shoot is worth the trip. The break-even for the 40 dB convention
+sits between 1000 and 2000 mm for 2×, between 2000 and 3000 mm for 4×, and is not reached at any
+distance tested for 8×.</p>
+
+<h2>What a re-shoot buys that no upscale can</h2>
+
+<p>Everything above assumes the capture is sharp. The case for re-shooting is stronger when it is
+not, because a blurred capture has thrown away information before the upscale ever sees it. I
+tested this by blurring the ground truth with increasing sigma before the 4× round trip, then
+applying an aggressive unsharp mask as the best available recovery.</p>
+
+<table>
+<thead><tr><th class="num">Capture blur sigma</th><th class="num">Upscale PSNR</th><th class="num">After sharpening</th><th class="num">Gain</th></tr></thead>
+<tbody>
+<tr><td class="num">0.0</td><td class="num">27.18</td><td class="num">27.20</td><td class="num">+0.01</td></tr>
+<tr><td class="num">1.0</td><td class="num">26.85</td><td class="num">27.23</td><td class="num">+0.38</td></tr>
+<tr><td class="num">2.0</td><td class="num">25.61</td><td class="num">26.12</td><td class="num">+0.51</td></tr>
+<tr><td class="num">3.0</td><td class="num">24.26</td><td class="num">24.66</td><td class="num">+0.40</td></tr>
+<tr><td class="num">4.0</td><td class="num">23.17</td><td class="num">23.47</td><td class="num">+0.30</td></tr>
+</tbody>
+</table>
+
+<p>The gain from sharpening peaks at <strong>0.513 dB</strong> when the capture was blurred by
+sigma 2.0 and then decreases again — you cannot sharpen back a capture that was never in focus,
+and the attempt stops paying somewhere past two pixels of blur. Note also that a soft capture
+loses only 0.33 dB to the upscale at sigma 1.0 (26.85 against 27.18), so the capture's own blur
+and the upscale's information loss are not additive; the blur dominates and hides the rest.</p>
+
+<p>The edge-width measurement shows the same thing from a different angle. On a synthetic step,
+the 10–90% rise of the 4× upscale equals the rise of the blurred capture exactly once the capture
+blur reaches 2 pixels: 7 px, 9 px and 11 px at sigma 2, 3 and 4, identical on both sides. Only at
+sigma 0 and 1 does the upscale widen the edge, from 3 to 5 pixels. An upscale cannot make an
+already-soft capture softer, which is a genuinely reassuring result and the opposite of the usual
+warning.</p>
+
+<h2>Cropping beats both, when you can</h2>
+
+<p>If the re-shoot is impossible, the next best thing is to have framed tighter in the first
+place. Taking only the centre ninth of a well-exposed frame and upscaling that is a different
+trade from upscaling the whole thing, because you start with three times the pixel density in the
+region you care about.</p>
+
+<table>
+<thead><tr><th>Centre-ninth crop</th><th class="num">Source pixels</th><th class="num">PSNR vs native crop</th><th class="num">HF ratio</th></tr></thead>
+<tbody>
+<tr><td>2× from a quarter-res frame</td><td class="num">48,600</td><td class="num">35.02</td><td class="num">0.518</td></tr>
+<tr><td>4× from a quarter-res frame</td><td class="num">12,150</td><td class="num">29.45</td><td class="num">0.243</td></tr>
+</tbody>
+</table>
+
+<p>35.02 dB for the 2× crop against 27.18 dB for the full-frame 4× is the largest single
+improvement anywhere in this article, and it costs nothing but a decision made before the shutter.
+Cropping is not a post-processing trick; it is a decision about where the pixels are allocated, and
+it dominates every resampling choice I measured.</p>
+
+<h2>A phone JPEG changes very little</h2>
+
+<p>The last check is whether a realistic source — a q72 JPEG from a phone rather than a clean
+PNG — shifts any of it. It does not, and the reason is instructive. At 2× the q72 source costs
+<strong>0.39 dB</strong> (31.81 against 32.20); at 4× it costs <strong>0.06 dB</strong> (27.12
+against 27.18). The JPEG penalty shrinks as the scale factor grows, because the resampling loss is
+much larger than the compression loss and simply swamps it. At high scale factors the choice of
+resampler matters far more than the bitrate of the source you fed it, which is the same conclusion
+the re-encoding experiment reached from the other direction.</p>
+
+<h2>File size tells you what survived</h2>
+
+<p>Every output is 1080×1620, so byte count is a direct read on how much information is actually
+in the file. A lossless PNG of the native capture is 1,642,936 bytes; the 4× upscale is 1,353,596
+and the 8× is 1,175,702. Pixel count is identical in all three, so the file is telling you that
+17.6% and then 28.4% of the content is gone. Bytes per pixel falls from 0.939 to 0.910 to 0.774
+to 0.672.</p>
+
+<p>At delivery quality, a q90 JPEG of the native frame is 303,632 bytes and the same settings on
+the 4× upscale are 224,056 — 73.8% of the file for an image a third as accurate. If you are
+budgeting bandwidth, an upscale is cheaper; if you are budgeting accuracy, the saving is coming
+out of the thing you wanted.</p>
+
+<h2>The snippet</h2>
+
+<p>The two experiments that carry the decision, reduced to something you can run. It needs only
+numpy and Pillow, and it prints the round-trip score, the correlation above the source Nyquist,
+and the noise-amplification crossover.</p>
+
+<pre><code>import numpy as np
+from PIL import Image
+
+def box_down(a, k):
+    h, w = a.shape[:2]; h2, w2 = h // k * k, w // k * k; a = a[:h2, :w2]
+    return a.reshape(h2 // k, k, w2 // k, k, -1).mean(axis=(1, 3))   # area average
+
+def up(a, size):
+    return np.asarray(Image.fromarray(np.clip(a, 0, 255).astype(np.uint8))
+                      .resize(size, Image.Resampling.LANCZOS), dtype=np.float64)
+
+def psnr(a, b):
+    mse = float(np.mean((a - b) ** 2))
+    return 10 * np.log10(255.0 ** 2 / mse)
+
+GT = np.asarray(Image.open('photo.jpg').convert('RGB'), dtype=np.float64)
+H, W, _ = GT.shape
+
+# 1. round trip: each doubling costs ~4-5 dB
+for k in (2, 4, 8):
+    print(k, round(psnr(up(box_down(GT, k), (W, H)), GT), 2))
+
+# 2. correlation above the source Nyquist (k=4 -> 0.25 cyc/px)
+u = up(box_down(GT, 4), (W, H)).mean(2); g = GT.mean(2)
+g -= g.mean(); u -= u.mean()
+G, U = np.fft.fftshift(np.fft.fft2(g)), np.fft.fftshift(np.fft.fft2(u))
+yy, xx = np.mgrid[0:H, 0:W]
+rr = np.sqrt(((yy - H/2)/(H/2))**2 + ((xx - W/2)/(W/2))**2) / np.sqrt(2)
+for lo, hi in ((0, .25), (.25, .5)):
+    m = (rr >= lo) & (rr < hi)
+    a = np.real(np.fft.ifft2(np.fft.ifftshift(U * m)))
+    b = np.real(np.fft.ifft2(np.fft.ifftshift(G * m)))
+    print(lo, hi, round(np.corrcoef(a.ravel(), b.ravel())[0, 1], 4))
+
+# 3. noise crossover: ratio exceeds 1.0 below one 8-bit level
+rng = np.random.default_rng(0)
+for sig in (0.25, 1.0, 8.0):
+    z = np.full((400, 400), 128.0)
+    d = up(z + rng.normal(0, sig, z.shape), (800, 800)) - up(z, (800, 800))
+    print(sig, round(d.std() / sig, 3))     # 2.000 / 1.001 / 0.895</code></pre>
+
+<p>On this machine that prints <code>2 32.2 / 4 27.18 / 8 23.25</code>, correlations
+<code>0.9952</code> and <code>0.2323</code>, and noise ratios <code>2.0 / 1.001 / 0.895</code>.
+The one place to be careful is <code>box_down</code>: it must be an area average. Substituting a
+nearest-pixel drop changes the 2× score by more than a decibel and will make the whole table look
+better than it is.</p>
+
+<h2>How to decide, in order</h2>
+
+<ol>
+<li><strong>Name the output size and the viewing distance first.</strong> Without those two numbers
+any comparison is unfalsifiable. The table above converts the distance into a sigma and the sigma
+into a score.</li>
+<li><strong>If you can frame tighter instead of upscaling more, do that.</strong> The centre-crop
+test gained 7.8 dB where every kernel change gained less than 0.4 dB.</li>
+<li><strong>Prefer the smallest scale factor that reaches the output size.</strong> Each doubling
+costs four to five decibels and no kernel choice recovers it. 2× beats 4× by 5.0 dB and 4× beats
+8× by 3.9 dB on identical content.</li>
+<li><strong>Do not sharpen to fix detail loss.</strong> Peak gain was 0.09 dB, and past amount 0.6
+the image becomes measurably less accurate while looking crisper.</li>
+<li><strong>Re-shoot when the capture itself is soft.</strong> That is the one deficit no
+post-processing step closed: sharpening recovered 0.51 dB at best and fell off again beyond two
+pixels of capture blur.</li>
+<li><strong>Ignore file size as a quality signal.</strong> The 8× upscale is 28.4% smaller than the
+native PNG at identical pixel dimensions, which is information leaving, not efficiency
+arriving.</li>
+</ol>
+
+<p>None of this argues against upscaling. It argues that the decision has a shape, and the shape is
+that an upscale is indistinguishable from a re-shoot for most print sizes viewed at most real
+distances, and stops being so exactly when someone holds the print in their hands. If you want to
+run the same round trip on your own master — the native capture is the only fair reference and the
+one thing worth generating — the resampling step at
+<a href="https://upgolab.com/en/upscale">the browser upscaler on upgolab.com</a> is the pipeline I
+used to produce the 4× and 8× columns here, and it takes a PNG or JPEG master directly so the
+comparison is not fighting a re-encode first.</p>
+
+<footer>
+Published by UpgoLAB — AI photo and short-video upscaling in the browser. Measured with numpy 1.26.4
+and Pillow 12.2.0 on one real 1080×1620 photograph and one synthetic step edge; 10 tables, 15
+experiments, 3 negative results (nearest-neighbour beats Lanczos on high-frequency energy while
+losing 2.4 dB of PSNR; sharpening peaks at 0.09 dB of PSNR and its added energy becomes less
+correlated with true detail as it increases; resampling amplifies rather than attenuates noise
+below one 8-bit level). Three intermediate experiments were discarded because their metrics were
+degenerate — a viewing-distance model that quantised to six identical rows, a circular
+"equivalent resolution" comparison, and a kernel-noise prediction that disagreed with its own
+measurement by 0.26 — and they are not quoted here. Every number reproducible from the snippet
+above; no value was adjusted after the run.
+
+<style>
+.sisternav{margin:2rem 0 0;padding-top:1.2rem;border-top:1px solid #e2e5ea}
+.sisternav p{font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;
+ color:#5b6270;margin:0 0 .6rem}
+.sisternav ul{list-style:none;padding:0;margin:0;display:flex;flex-wrap:wrap;gap:.4rem .9rem}
+.sisternav li{margin:0;font-size:.88rem;line-height:1.4}
+.sisternav a{text-decoration:none;border-bottom:1px solid #d5dae2}
+.sisternav a:hover{border-bottom-color:#0a58ca}
+</style>
+
+<nav class="sisternav" aria-label="More measured upscaling guides">
+<p>More measured guides</p>
+<ul>
+  <li><a href="https://celticgemini001.github.io/upgolab-ai-upscaler-guide/">What upscaling recovers vs invents</a></li>
+  <li><a href="https://celticgemini001.github.io/upgolab-video-upscaling-limits/">Why video isn't image upscaling</a></li>
+  <li><a href="https://celticgemini001.github.io/upgolab-upscale-product-photos/">Product shot vs face</a></li>
+  <li><a href="https://celticgemini001.github.io/upgolab-2k-vs-4k-decision/">2K vs 4K bits-per-pixel</a></li>
+  <li><a href="https://celticgemini001.github.io/upgolab-upscale-anime-illustration/">Line art and ink coverage</a></li>
+  <li><a href="https://celticgemini001.github.io/upgolab-old-footage-restoration/">Old footage restoration</a></li>
+  <li><a href="https://celticgemini001.github.io/upgolab-screen-recording-4k/">Screen recording to 4K</a></li>
+  <li><a href="https://celticgemini001.github.io/upgolab-thumbnail-4k-master/">4K thumbnail master</a></li>
+  <li><a href="https://celticgemini001.github.io/upgolab-remove-background-and-upscale/">Cutout and upscale</a></li>
+  <li><a href="https://celticgemini001.github.io/upgolab-anisotropic-upscale/">Anisotropic / one-axis scale</a></li>
+  <li><a href="https://celticgemini001.github.io/upgolab-chroma-subsampling/">Chroma subsampling 4:2:0</a></li>
+  <li><a href="https://celticgemini001.github.io/upgolab-gamma-vs-linear-light/">Gamma vs linear light</a></li>
+  <li><a href="https://celticgemini001.github.io/upgolab-bit-depth-banding/">8-bit vs 10-bit banding</a></li>
+  <li><a href="https://celticgemini001.github.io/upgolab-jpeg-blocking-upscale/">JPEG blocking under upscaling</a></li>
+  <li><a href="https://celticgemini001.github.io/upgolab-what-nofollow-means/">What rel=nofollow actually does</a></li>
+  <li><a href="https://celticgemini001.github.io/upgolab-tools/">All guides (index)</a></li>
+</ul>
+</nav>
+</footer>
+</article>
+</main>
+</body>
+</html>
