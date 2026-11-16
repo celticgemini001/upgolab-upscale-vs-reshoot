@@ -42,6 +42,15 @@ pre{background:#f7f8fa;border:1px solid var(--line);border-radius:8px;padding:1r
 code{font-size:.9em}
 footer{margin-top:4rem;padding-top:1.4rem;border-top:1px solid var(--line);font-size:.9rem;color:var(--mut)}
 </style>
+<style>
+.sisternav{margin:2rem 0 0;padding-top:1.2rem;border-top:1px solid #e2e5ea}
+.sisternav p{font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;
+ color:#5b6270;margin:0 0 .6rem}
+.sisternav ul{list-style:none;padding:0;margin:0;display:flex;flex-wrap:wrap;gap:.4rem .9rem}
+.sisternav li{margin:0;font-size:.88rem;line-height:1.4}
+.sisternav a{text-decoration:none;border-bottom:1px solid #d5dae2}
+.sisternav a:hover{border-bottom-color:#0a58ca}
+</style>
 </head>
 <body>
 <main>
@@ -69,7 +78,7 @@ you upscaled from, so you are grading the upscale against its own input. That is
 it is why most published comparisons of this kind are worthless. The way around it is to be strict
 about what the re-shoot actually is: a <em>genuine capture at the output resolution</em>. I do not
 have one, so I use the native capture as the reference and treat the downscale as the substitute
-for "you only had a quarter of the pixels." Everything measured after that is honest, because the
+for "you only had a <a href="https://celticgemini001.github.io/upgolab-2k-vs-4k-decision/">quarter of the pixels</a>." Everything measured after that is honest, because the
 downscale genuinely destroys the information the upscale has to invent.</p>
 
 <p>The ground truth is 1080×1620 — one real photograph, not a test pattern. Its PNG is 1,642,936
@@ -158,7 +167,7 @@ edge would suggest, and the question is whether any of that energy is real.</p>
 
 <p>This is the measurement I actually wanted. Split the upscale's own spectrum at the source
 Nyquist and correlate each side against the corresponding band of the real capture. If the
-invented band correlates with the truth, the resampler is reconstructing something. If it
+<a href="https://celticgemini001.github.io/upgolab-ai-upscaler-guide/">invented band</a> correlates with the truth, the resampler is reconstructing something. If it
 correlates with noise, it is inventing.</p>
 
 <table>
@@ -454,6 +463,8 @@ one thing worth generating — the resampling step at
 used to produce the 4× and 8× columns here, and it takes a PNG or JPEG master directly so the
 comparison is not fighting a re-encode first.</p>
 
+
+</article>
 <footer>
 Published by UpgoLAB — AI photo and short-video upscaling in the browser. Measured with numpy 1.26.4
 and Pillow 12.2.0 on one real 1080×1620 photograph and one synthetic step edge; 9 tables, 11
@@ -465,16 +476,6 @@ degenerate — a viewing-distance model that quantised to six identical rows, a 
 "equivalent resolution" comparison, and a kernel-noise prediction that disagreed with its own
 measurement by 0.26 — and they are not quoted here. Every number reproducible from the snippet
 above; no value was adjusted after the run.
-
-<style>
-.sisternav{margin:2rem 0 0;padding-top:1.2rem;border-top:1px solid #e2e5ea}
-.sisternav p{font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;
- color:#5b6270;margin:0 0 .6rem}
-.sisternav ul{list-style:none;padding:0;margin:0;display:flex;flex-wrap:wrap;gap:.4rem .9rem}
-.sisternav li{margin:0;font-size:.88rem;line-height:1.4}
-.sisternav a{text-decoration:none;border-bottom:1px solid #d5dae2}
-.sisternav a:hover{border-bottom-color:#0a58ca}
-</style>
 
 <nav class="sisternav" aria-label="More measured upscaling guides">
 <p>More measured guides</p>
@@ -507,7 +508,6 @@ above; no value was adjusted after the run.
 </ul>
 </nav>
 </footer>
-</article>
 </main>
 </body>
 </html>
