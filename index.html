@@ -380,9 +380,257 @@ the 4× upscale are 224,056 — 73.8% of the file for an image a third as accura
 budgeting bandwidth, an upscale is cheaper; if you are budgeting accuracy, the saving is coming
 out of the thing you wanted.</p>
 
-<h2>The snippet</h2>
+<h2>What a re-shoot actually costs: the aperture is the resolution limit</h2>
 
-<p>The two experiments that carry the decision, reduced to something you can run. It needs only
+<p>Every experiment above treats "re-shoot" as a ground truth with unlimited resolution. That is
+the assumption I want to attack, because it is the one that decides the purchase. A re-shoot does
+not conjure detail. It puts more, smaller pixels behind the <em>same lens at the same
+aperture</em>, and at that point the lens is no longer the thing you are sampling — it is the
+thing that is limiting you, and it stops being able to tell the two captures apart.</p>
+
+<p>The physics is a single number. A circular aperture at f/N spreads a point into an Airy disc
+whose first zero sits at 1.22&nbsp;λN, and the optical transfer drops to zero at a hard cutoff of
+1/(λN) cycles per unit length. For green light at 550&nbsp;nm and a 36&nbsp;mm frame that cutoff
+is 649&nbsp;cyc/mm at f/2.8 and falls to 83&nbsp;cyc/mm at f/22. A sensor can only record up to
+its own Nyquist, 1/(2p) for pixel pitch <em>p</em>, so the two limits are equal at</p>
+
+<p style="text-align:center"><strong>p = λN / 2</strong></p>
+
+<p>which for f/8 and 550&nbsp;nm is 2.20&nbsp;µm. Below that pitch, adding pixels adds container,
+not detail. I modelled the whole chain rather than trusting the formula, because I have been
+burned by trusting a formula in this article already.</p>
+
+<h3>The model, and why I trust it</h3>
+
+<p>An ideal scene is rendered at a 0.75&nbsp;µm supersample pitch, convolved with a real Airy PSF
+computed from Bessel J1 (Abramowitz &amp; Stegun 9.4.4/9.4.6, |error|&nbsp;&lt;&nbsp;2e-8),
+integrated over a pixel box, sampled, given Poisson shot noise at a fixed number of electrons per
+square micrometre, and quantised to 8 bits. Two sensors, same lens, same field of view:
+a <strong>coarse</strong> one at 6000&nbsp;px across the frame (p&nbsp;=&nbsp;6.00&nbsp;µm) and a
+<strong>fine</strong> one at 12000&nbsp;px (p&nbsp;=&nbsp;3.00&nbsp;µm) representing the re-shoot.
+The coarse frame is then Lanczos-upscaled 2× onto the fine grid. Both are scored against the same
+reference: the ideal scene through a 3&nbsp;µm pixel box only, i.e. a diffraction-free fine
+capture. A perfect re-shoot would score 99&nbsp;dB by construction.</p>
+
+<p>Before any of the results, the harness has to be checked against something known independently.
+I measured MTF50 off the simulated PSF curve and compared it with the closed-form Airy MTF
+multiplied by the pixel sinc:</p>
+
+<table>
+<thead><tr><th>f/</th><th>Measured, 6 µm</th><th>Closed-form, 6 µm</th><th>Measured, 3 µm</th><th>Closed-form, 3 µm</th></tr></thead>
+<tbody>
+<tr><td>4.0</td><td>82.0</td><td>81.9</td><td>128.6</td><td>128.1</td></tr>
+<tr><td>8.0</td><td>64.3</td><td>64.1</td><td>82.0</td><td>81.6</td></tr>
+<tr><td>16.0</td><td>41.1</td><td>40.8</td><td>44.8</td><td>44.5</td></tr>
+<tr><td>22.0</td><td>31.6</td><td>31.3</td><td>33.1</td><td>32.8</td></tr>
+</tbody>
+</table>
+
+<p>All values in line-pairs per millimetre. Worst disagreement is 0.5&nbsp;lp/mm, which is FFT bin
+interpolation, not a modelling error. The harness measures what the formula says it should, so the
+numbers below are worth reading.</p>
+
+<h3>MTF50 by aperture, and the gain that shrinks to nothing</h3>
+
+<table>
+<thead><tr><th>f/</th><th>MTF50, 6 µm</th><th>MTF50, 3 µm</th><th>Re-shoot gain</th><th>Diffraction cutoff</th></tr></thead>
+<tbody>
+<tr><td>2.8</td><td>87.7</td><td>149.1</td><td>+61.4</td><td>649</td></tr>
+<tr><td>4.0</td><td>82.0</td><td>128.6</td><td>+46.6</td><td>455</td></tr>
+<tr><td>5.6</td><td>74.6</td><td>106.1</td><td>+31.5</td><td>325</td></tr>
+<tr><td>8.0</td><td>64.3</td><td>82.0</td><td>+17.7</td><td>227</td></tr>
+<tr><td>11.0</td><td>53.7</td><td>62.9</td><td>+9.2</td><td>165</td></tr>
+<tr><td>16.0</td><td>41.1</td><td>44.8</td><td>+3.7</td><td>114</td></tr>
+<tr><td>22.0</td><td>31.6</td><td>33.1</td><td>+1.6</td><td>83</td></tr>
+</tbody>
+</table>
+
+<p>Doubling the pixel count buys 61&nbsp;lp/mm at f/2.8 and 1.6&nbsp;lp/mm at f/22. The gain does
+not decay gracefully — it decays faster than the aperture number rises, because two blur sources
+are combining in quadrature and the diffraction term is the one that dominates once it is bigger
+than the pixel. At f/22 the two sensors are, optically, the same sensor.</p>
+
+<h3>The noise-free comparison, and where the 1 dB line falls</h3>
+
+<p>Scoring both against the ideal fine reference, with no noise at all, isolates the optical
+cost:</p>
+
+<table>
+<thead><tr><th>f/</th><th>Coarse, 2× upscale</th><th>Fine capture</th><th>Re-shoot gain</th></tr></thead>
+<tbody>
+<tr><td>2.8</td><td>26.30 dB</td><td>36.13 dB</td><td>+9.83 dB</td></tr>
+<tr><td>3.5</td><td>26.20 dB</td><td>34.27 dB</td><td>+8.07 dB</td></tr>
+<tr><td>4.0</td><td>26.13 dB</td><td>33.18 dB</td><td>+7.06 dB</td></tr>
+<tr><td>5.6</td><td>25.85 dB</td><td>30.49 dB</td><td>+4.64 dB</td></tr>
+<tr><td>8.0</td><td>25.37 dB</td><td>27.84 dB</td><td>+2.47 dB</td></tr>
+<tr><td>11.0</td><td>24.71 dB</td><td>25.90 dB</td><td>+1.19 dB</td></tr>
+<tr><td>12.5</td><td>24.37 dB</td><td>25.22 dB</td><td>+0.85 dB</td></tr>
+<tr><td>16.0</td><td>23.61 dB</td><td>24.03 dB</td><td>+0.42 dB</td></tr>
+<tr><td>22.0</td><td>22.49 dB</td><td>22.63 dB</td><td>+0.14 dB</td></tr>
+</tbody>
+</table>
+
+<p>The absolute values are lower than the photograph-based tables earlier in this article because
+this synthetic scene carries a frequency sweep out to 500&nbsp;cyc/mm that neither sensor can
+resolve — it is a deliberately harsh test. Read the <em>delta</em> column, not the absolute one.
+The re-shoot's advantage crosses 1&nbsp;dB between f/11 and f/12.5, and by f/16 it is inside the
+noise of the quantiser. If you are paying a day of shooting to gain a third of a decibel, you are
+buying a feeling.</p>
+
+<h3>The result I did not expect: in low light the upscale wins</h3>
+
+<p>This is the part that changed my mind about how to frame the whole decision. A 6&nbsp;µm pixel
+collects 36× the electrons of a 3&nbsp;µm pixel at the same exposure, and shot noise goes as the
+square root of the signal. So the re-shoot trades photon collection for sampling density — and
+below some exposure it trades badly. Same harness, now with Poisson noise at a fixed
+electrons-per-square-micrometre:</p>
+
+<table>
+<thead><tr><th>f/</th><th>Electrons/µm²</th><th>Coarse + upscale</th><th>Fine re-shoot</th><th>Delta</th><th>Winner</th></tr></thead>
+<tbody>
+<tr><td>4.0</td><td>4000</td><td>26.12</td><td>33.11</td><td>+6.98</td><td>re-shoot</td></tr>
+<tr><td>4.0</td><td>64</td><td>25.94</td><td>30.05</td><td>+4.12</td><td>re-shoot</td></tr>
+<tr><td>4.0</td><td>25</td><td>25.68</td><td>27.57</td><td>+1.89</td><td>re-shoot</td></tr>
+<tr><td>4.0</td><td>10</td><td>25.11</td><td>24.53</td><td>−0.58</td><td><strong>upscale</strong></td></tr>
+<tr><td>8.0</td><td>4000</td><td>25.37</td><td>27.82</td><td>+2.45</td><td>re-shoot</td></tr>
+<tr><td>8.0</td><td>64</td><td>25.21</td><td>26.64</td><td>+1.43</td><td>re-shoot</td></tr>
+<tr><td>8.0</td><td>25</td><td>24.97</td><td>25.33</td><td>+0.36</td><td>re-shoot</td></tr>
+<tr><td>8.0</td><td>10</td><td>24.48</td><td>23.26</td><td>−1.22</td><td><strong>upscale</strong></td></tr>
+<tr><td>11.0</td><td>4000</td><td>24.71</td><td>25.89</td><td>+1.18</td><td>re-shoot</td></tr>
+<tr><td>11.0</td><td>25</td><td>24.37</td><td>24.14</td><td>−0.23</td><td><strong>upscale</strong></td></tr>
+<tr><td>16.0</td><td>4000</td><td>23.61</td><td>24.02</td><td>+0.41</td><td>re-shoot</td></tr>
+<tr><td>16.0</td><td>64</td><td>23.50</td><td>23.49</td><td>−0.01</td><td><strong>upscale</strong></td></tr>
+<tr><td>16.0</td><td>10</td><td>23.00</td><td>21.52</td><td>−1.49</td><td><strong>upscale</strong></td></tr>
+</tbody>
+</table>
+
+<p>The sign flips. Bisecting on exposure to find where, and converting to stops below the
+full-well point of the coarse sensor (assuming 30,000 electrons in a 6&nbsp;µm well, which is a
+normal figure for the generation of sensor this describes — it is an assumption, stated
+openly):</p>
+
+<table>
+<thead><tr><th>f/</th><th>Crossover, e⁻/µm²</th><th>Of saturation</th><th>Stops underexposed</th></tr></thead>
+<tbody>
+<tr><td>4.0</td><td>12.3</td><td>1.5%</td><td>6.1</td></tr>
+<tr><td>8.0</td><td>19.9</td><td>2.4%</td><td>5.4</td></tr>
+<tr><td>11.0</td><td>31.5</td><td>3.8%</td><td>4.7</td></tr>
+<tr><td>16.0</td><td>67.2</td><td>8.1%</td><td>3.6</td></tr>
+</tbody>
+</table>
+
+<p>So the crossover is not at a marginal exposure, it is at a <em>deeply</em> underexposed one —
+six stops under at f/4, three and a half at f/16. In any realistic indoor or dusk situation both
+captures are far above the line and the re-shoot wins. The upscale only overtakes when the
+re-shoot is so starved of light that its extra pixels are recording noise. That is a narrower
+condition than the internet implies, but it is a real one: it is exactly the situation of someone
+shooting at ISO 6400 in a dim room and wondering whether the higher-resolution body is worth it.
+At that exposure it is not, and the measurement says so at −1.49&nbsp;dB.</p>
+
+<h3>How many of the re-shoot's pixels are real</h3>
+
+<p>The last way to see it, and the one I find most useful operationally, is to convert MTF50 into
+a pixel count. A system resolving <em>f</em>&nbsp;lp/mm across a 36&nbsp;mm frame resolves
+2<em>f</em>&nbsp;×&nbsp;36 cycles — that is the number of pixels it can actually fill. Divide by
+12000, the pixels you paid for:</p>
+
+<table>
+<thead><tr><th>f/</th><th>Coarse, real px</th><th>Fine, real px</th><th>Fine, % of 12000</th></tr></thead>
+<tbody>
+<tr><td>2.8</td><td>6,314</td><td>10,735</td><td>89%</td></tr>
+<tr><td>4.0</td><td>5,904</td><td>9,259</td><td>77%</td></tr>
+<tr><td>5.6</td><td>5,371</td><td>7,639</td><td>64%</td></tr>
+<tr><td>8.0</td><td>4,630</td><td>5,904</td><td>49%</td></tr>
+<tr><td>11.0</td><td>3,866</td><td>4,529</td><td>38%</td></tr>
+<tr><td>16.0</td><td>2,959</td><td>3,226</td><td>27%</td></tr>
+<tr><td>22.0</td><td>2,275</td><td>2,383</td><td>20%</td></tr>
+</tbody>
+</table>
+
+<p>Read the two right-hand columns together. A 12,000-pixel capture at f/8 delivers 5,904 real
+pixels — you paid for 12,000 and got half. At f/22 it delivers 2,383, or one pixel in five. And
+here is the comparison that reframes the whole article: <strong>the 6,000-pixel sensor at f/8
+resolves 4,630 real pixels, which is 1.9× what the 12,000-pixel re-shoot resolves at
+f/22.</strong> The re-shoot, stopped down, is not a better capture. It is a bigger file containing
+less.</p>
+
+<p>This is why "re-shoot at a smaller aperture to get everything sharp" and "re-shoot for
+resolution" are contradictory instructions, and why a landscape photographer stopping down to f/16
+for depth of field has already thrown away the resolution they went to the larger sensor to buy.
+The two decisions interact, and the interaction is measured above: at f/16 the gain over a 2×
+upscale of a half-resolution capture is 0.42&nbsp;dB noise-free and −0.01&nbsp;dB at 64&nbsp;e⁻/µm².
+Depth of field and resolution are the same dial.</p>
+
+<h3>What this does not say</h3>
+
+<p>Three limits, stated so the table is not read as more than it is. First, the model has no
+lens aberrations — a real lens is worse than diffraction alone wide open, which makes the
+wide-aperture rows optimistic and pushes the practical crossover <em>in</em>, toward larger
+f-numbers. Second, the scene is synthetic and deliberately harsher than a photograph; the deltas
+transfer, the absolute decibels do not. Third, the full-well figure is an assumption. Substituting
+a different well depth scales the "stops underexposed" column and leaves the crossover in
+electrons per square micrometre untouched, which is the quantity the physics actually depends
+on.</p>
+
+<p>And it does not overturn the earlier conclusion. That conclusion was that for most print sizes
+at most viewing distances an upscale is indistinguishable from a re-shoot, and nothing here
+contradicts it — it explains it. The upscale is competitive because the re-shoot is also limited,
+by the same aperture that limits everything else, and the distance at which the two converge is
+the distance at which the shared optical limit becomes the only thing that matters.</p>
+
+<h3>The snippet</h3>
+
+<p>The measurement the whole section rests on needs only numpy: build the Airy PSF from Bessel
+J1, convolve, integrate over the pixel box, and read MTF50 off the resulting curve. No scipy, no
+optics library.</p>
+
+<pre><code>import numpy as np
+
+LAM = 0.55          # um, green
+P_SS = 0.75         # um, supersample pitch
+
+def bessel_j1(x):
+    """A&amp;S 9.4.4 / 9.4.6, |err| &lt; 2e-8."""
+    x = np.asarray(x, float); out = np.empty_like(x); ax = np.abs(x)
+    s = ax &lt; 3.0
+    t = (ax[s] / 3.0) ** 2
+    out[s] = ax[s] * (0.5 + t * (-0.56249985 + t * (0.21093573 + t * (
+        -0.03954289 + t * (0.00443319 + t * (-0.00031761 + t * 0.00001109))))))
+    b = ~s; t = 3.0 / ax[b]
+    f1 = 0.79788456 + t * (-0.00000077 + t * (-0.00552740 + t * (-0.00009512 + t * (
+        0.00137237 + t * (-0.00072805 + t * 0.00014476)))))
+    th = ax[b] - 2.35619449 + t * (0.12499612 + t * (0.00005650 + t * (-0.00637879 + t * (
+        0.00074348 + t * (0.00079824 + t * -0.00029166)))))
+    out[b] = np.sqrt(1.0 / ax[b]) * f1 * np.cos(th)
+    return np.where(x &lt; 0, -out, np.where(x == 0, 0.0, out))
+
+def mtf50(fnum, pitch_um, n=1025, nfft=4096):
+    r = (np.arange(n) - n // 2) * P_SS
+    R = np.hypot(r[None, :], r[:, None])
+    xr = np.pi * R / (LAM * fnum)
+    psf = np.where(xr &gt; 1e-9, (2.0 * bessel_j1(xr) / np.where(xr == 0, 1, xr)) ** 2, 1.0)
+    psf /= psf.sum()
+    Mt = np.abs(np.fft.rfft2(psf, s=(nfft, nfft)))[0, :]
+    f = np.arange(Mt.size) / (nfft * P_SS) * 1000.0        # cycles/mm
+    Mt = Mt * np.abs(np.sinc(f / 1000.0 * pitch_um))        # pixel aperture
+    Mt /= Mt[0]
+    i = np.argmax(Mt &lt; 0.5)                                 # first crossing
+    return f[i - 1] + (0.5 - Mt[i - 1]) * (f[i] - f[i - 1]) / (Mt[i] - Mt[i - 1])
+
+for N in (2.8, 4, 5.6, 8, 11, 16, 22):
+    print(f"f/{N:&lt;5} 6um {mtf50(N, 6.0):6.1f}  3um {mtf50(N, 3.0):6.1f}  "
+          f"cutoff {1000 / (LAM * N):6.1f} cyc/mm")</code></pre>
+
+<p>On this machine it prints <code>f/8 6um 64.3 3um 82.0 cutoff 227.3</code> and
+<code>f/22 6um 31.6 3um 33.1 cutoff 82.6</code>, matching the closed-form values quoted above to
+within half a line pair. The two lines to change are <code>LAM</code> if you want a different
+wavelength and <code>P_SS</code> if you raise the supersample factor — below 4× the PSF is under-
+sampled and MTF50 drifts up by a couple of line pairs, which is enough to hide the f/16-to-f/22
+flattening that the whole argument turns on.</p>
+
+<h2>Everything above, in one script</h2>
+
+<p>The two experiments that carry the viewing-distance decision, reduced to something you can run. It needs only
 numpy and Pillow, and it prints the round-trip score, the correlation above the source Nyquist,
 and the noise-amplification crossover.</p>
 
